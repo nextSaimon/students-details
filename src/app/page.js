@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 export default function HSCDetailsPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -195,36 +196,38 @@ export default function HSCDetailsPage() {
       {/* Display HSC Details */}
       <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3 w-full max-w-4xl">
         {details.map((detail) => (
-          <Card key={detail._id}>
-            <CardContent className="p-4">
-              <p>
-                <strong>HSC Batch:</strong> {detail.batch}{" "}
-                {/* Corrected the property name */}
-              </p>
-              <p>
-                <strong>Session:</strong> {detail.session}
-              </p>
-              <p>
-                <strong>HSC Year:</strong> {detail.year}
-              </p>
-            </CardContent>
-            <CardFooter className="justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleEdit(detail._id)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => confirmDelete(detail._id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
+          <Link key={detail._id} href={`/hsc-${detail.year}`}>
+            <Card>
+              <CardContent className="p-4">
+                <p>
+                  <strong>HSC Batch:</strong> {detail.batch}{" "}
+                  {/* Corrected the property name */}
+                </p>
+                <p>
+                  <strong>Session:</strong> {detail.session}
+                </p>
+                <p>
+                  <strong>HSC Year:</strong> {detail.year}
+                </p>
+              </CardContent>
+              <CardFooter className="justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleEdit(detail._id)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => confirmDelete(detail._id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          </Link>
         ))}
       </div>
 
