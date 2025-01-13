@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,35 +15,32 @@ import {
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 
-export default function page() {
+export default function SectionPage({ params }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [details, setDetails] = useState([]);
+  const [sections, setSections] = useState([]);
   const [formData, setFormData] = useState({
-    batch: "",
-    session: "",
-    year: "",
+    name: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteId, setDeleteId] = useState(null);
 
-  // Fetch data on page load
   useEffect(() => {
-    const fetchHscDetails = async () => {
-      const response = await fetch("/api/hsc", {
+    const fetchSections = async () => {
+      const response = await fetch(`/api/section/${params.id}`, {
         cache: "no-store",
       });
       if (response.ok) {
         const data = await response.json();
-        setDetails(data);
+        setSections(data);
       } else {
-        console.error("Failed to fetch HSC details");
+        console.error("Failed to fetch sections");
       }
     };
 
-    fetchHscDetails();
-  }, []);
+    fetchSections();
+  }, [params.id]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -56,62 +53,57 @@ export default function page() {
     e.preventDefault();
 
     if (editingId !== null) {
-      const response = await fetch("/api/hsc", {
+      const response = await fetch("/api/section", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           id: editingId,
-          batch: formData.batch,
-          session: formData.session,
-          year: formData.year,
+          name: formData.name,
         }),
       });
 
       if (response.ok) {
-        const updatedDetail = await response.json();
-        setDetails(
-          details.map((detail) =>
-            detail._id === editingId ? updatedDetail : detail
+        const updatedSection = await response.json();
+        setSections(
+          sections.map((section) =>
+            section._id === editingId ? updatedSection : section
           )
         );
         setEditingId(null);
       } else {
-        console.error("Failed to update HSC details");
+        console.error("Failed to update section");
       }
     } else {
-      const response = await fetch("/api/hsc", {
+      const response = await fetch("/api/section", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          batch: formData.batch,
-          session: formData.session,
-          year: formData.year,
+          name: formData.name,
+          hsc_batch: params.id,
         }),
       });
 
       if (response.ok) {
-        const newDetail = await response.json();
-        setDetails([...details, newDetail]);
+        const newSection = await response.json();
+        setSections([...sections, newSection]);
       } else {
-        console.error("Failed to save HSC details");
+        console.error("Failed to save section");
       }
     }
 
-    setFormData({ batch: "", session: "", year: "" });
+    setFormData({ name: "" });
     setIsOpen(false);
   };
 
   const handleEdit = (id) => {
-    const detailToEdit = details.find((detail) => detail._id === id);
-    if (detailToEdit) {
+    const sectionToEdit = sections.find((section) => section._id === id);
+    if (sectionToEdit) {
       setFormData({
-        batch: detailToEdit.batch, // fixed the property name from 'name' to 'batch'
-        session: detailToEdit.session,
-        year: detailToEdit.year,
+        name: sectionToEdit.sectionName,
       });
       setEditingId(id);
       setIsOpen(true);
@@ -125,7 +117,7 @@ export default function page() {
 
   const handleDelete = async () => {
     if (deleteConfirmText === "delete") {
-      const response = await fetch("/api/hsc", {
+      const response = await fetch("/api/section", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -134,56 +126,35 @@ export default function page() {
       });
 
       if (response.ok) {
-        setDetails(details.filter((detail) => detail._id !== deleteId));
+        setSections(sections.filter((section) => section._id !== deleteId));
         setIsDeleteDialogOpen(false);
         setDeleteConfirmText("");
         setDeleteId(null);
       } else {
-        console.error("Failed to delete HSC details");
+        console.error("Failed to delete section");
       }
     }
   };
 
   return (
     <div className="container mx-auto p-4 flex flex-col items-center">
-      {/* Create HSC Details */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button className="mb-8">Add HSC Details</Button>
+          <Button className="mb-8">Add Section</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingId !== null ? "Edit" : "Enter"} HSC Details
+              {editingId ? "Edit" : "Enter"} Section Name
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="batch">HSC Batch</Label>
+              <Label htmlFor="name">Section Name</Label>
               <Input
-                id="batch"
-                name="batch"
-                value={formData.batch}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="session">Session</Label>
-              <Input
-                id="session"
-                name="session"
-                value={formData.session}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="year">HSC Year</Label>
-              <Input
-                id="year"
-                name="year"
-                value={formData.year}
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
                 required
               />
@@ -195,21 +166,13 @@ export default function page() {
         </DialogContent>
       </Dialog>
 
-      {/* Display HSC Details */}
       <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3 w-full max-w-4xl">
-        {details.slice().reverse().map((detail) => (
-          <Card>
-            <Link key={detail._id} href={`/${detail.link}`}>
+        {sections.map((section) => (
+          <Card key={section._id}>
+            <Link href={`/${params.id}/${section._id}`}>
               <CardContent className="p-4">
                 <p>
-                  <strong>HSC Batch:</strong> {detail.batch}{" "}
-                  {/* Corrected the property name */}
-                </p>
-                <p>
-                  <strong>Session:</strong> {detail.session}
-                </p>
-                <p>
-                  <strong>HSC Year:</strong> {detail.year}
+                  <strong>Section Name:</strong> {section.sectionName}
                 </p>
               </CardContent>
             </Link>
@@ -217,14 +180,14 @@ export default function page() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleEdit(detail._id)}
+                onClick={() => handleEdit(section._id)}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => confirmDelete(detail._id)}
+                onClick={() => confirmDelete(section._id)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

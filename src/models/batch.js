@@ -1,17 +1,24 @@
 import mongoose from "mongoose";
 
 const batchSchema = new mongoose.Schema({
-  name: {
+  batch: {
     type: String,
     required: true,
   },
-  hsc: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Hsc",
+  session: {
+    type: String,
+    required: true,
+  },
+  year: {
+    type: String,
+    required: true,
+  },
+  link: {
+    type: String,
+    required: true,
   },
 });
 
 const Batch = mongoose.models.Batch || mongoose.model("Batch", batchSchema);
 
 export default Batch;
-
