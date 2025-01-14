@@ -1,5 +1,5 @@
 import { connectToDB } from "@/lib/db";
-import Batch from "../../../models/Batch";
+import Batch from "@/models/Batch";
 import Section from "@/models/Section";
 
 // Get Batch details (GET)
