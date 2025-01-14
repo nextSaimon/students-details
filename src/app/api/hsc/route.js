@@ -72,18 +72,31 @@ export async function PUT(req) {
   }
 }
 
-
 // Delete Batch details (DELETE)
 export async function DELETE(req) {
   try {
     await connectToDB();
     const { id } = await req.json();
 
-    //find from Section where batchId 
+    const batch = await Batch.findById(id);
+    if (!batch) {
+      return new Response("Batch not found", { status: 404 });
+    }
 
+   
+    const sections = await Section.find({ batchId: id });
+
+    // Delete all sections associated with the batch
+    for (const section of sections) {
+      await Section.findByIdAndDelete(section._id);
+    }
+
+    // Delete the batch
     await Batch.findByIdAndDelete(id);
 
-    return new Response("Batch details deleted", { status: 200 });
+    return new Response("Batch details and associated sections deleted", {
+      status: 200,
+    });
   } catch (error) {
     console.error(error);
     return new Response("Failed to delete Batch details", { status: 500 });

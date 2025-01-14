@@ -41,7 +41,7 @@ export default function SectionPage({ params }) {
     };
 
     fetchSections();
-  }, [params.id]);
+  }, [params.id]); // Add params.id in the dependency array
 
   //handle change
   const handleInputChange = (e) => {

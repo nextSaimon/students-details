@@ -1,30 +1,21 @@
 import { connectToDB } from "@/lib/db";
 
 import Section from "@/models/Section";
+import Batch from "@/models/Batch";
 
-export async function GET(req, { params }) {
-  try {
-    await connectToDB();
-
-    // Fetch all sections based on batchId
-    const sections = await Section.find({ batchId: params.id });
-    return new Response(JSON.stringify(sections), { status: 200 });
-  } catch (error) {
-    console.error(error);
-    return new Response("Failed to fetch sections", { status: 500 });
-  }
-}
 
 export async function POST(req) {
+
   try {
     await connectToDB();
 
     const { name, hsc_batch } = await req.json();
 
+    const year = hsc_batch.split("-")[1];
     // Check if a section with the same name already exists
     const existingSection = await Section.findOne({
       sectionName: name,
-      batchId: hsc_batch,
+      batchLink: hsc_batch,
     });
 
     if (existingSection) {
@@ -34,9 +25,14 @@ export async function POST(req) {
       );
     }
 
+    // find year of batch
+    const batch = await Batch.findOne({ batch: year });
+    // _id of batch
+    const hsc_batch_id = batch._id;
     const newSection = new Section({
       sectionName: name,
-      batchId: hsc_batch,
+      batchId: hsc_batch_id,
+      batchLink: hsc_batch,
     });
 
     await newSection.save();
@@ -46,7 +42,6 @@ export async function POST(req) {
     return new Response("Failed to create section", { status: 500 });
   }
 }
-
 
 export async function PUT(req) {
   try {
@@ -84,7 +79,6 @@ export async function PUT(req) {
     return new Response("Failed to update section", { status: 500 });
   }
 }
-
 
 export async function DELETE(req) {
   try {

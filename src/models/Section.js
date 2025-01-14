@@ -10,6 +10,10 @@ const sectionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    batchLink: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );

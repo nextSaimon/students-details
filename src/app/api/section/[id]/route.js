@@ -1,17 +1,16 @@
 import { connectToDB } from "@/lib/db"; // Example DB connection
 import Section from "@/models/Section"; // Example Section model
-import { NextResponse } from "next/server";
 
-export async function GET(request, { params }) {
+export async function GET(req, { params }) {
   try {
-    // Await the params.id to resolve the promise
-    const { id } = await params;
-
     await connectToDB();
-    const section = await Section.find({ batchId: id });
-    return NextResponse.json(section);
+
+    // Fetch all sections based on batchId
+    const sections = await Section.find({ batchLink: params.id });
+
+    return new Response(JSON.stringify(sections), { status: 200 });
   } catch (error) {
     console.error(error);
-    return NextResponse.error();
+    return new Response("Failed to fetch sections", { status: 500 });
   }
 }
