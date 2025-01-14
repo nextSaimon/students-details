@@ -21,12 +21,12 @@ export default function page() {
   const [formData, setFormData] = useState({
     batch: "",
     session: "",
-    year: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteId, setDeleteId] = useState(null);
+  const [error, setError] = useState(null);
 
   // Fetch data on page load
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function page() {
 
     fetchHscDetails();
   }, []);
-
+  //handle change
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -52,59 +52,49 @@ export default function page() {
     });
   };
 
+  //handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingId !== null) {
-      const response = await fetch("/api/hsc", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: editingId,
-          batch: formData.batch,
-          session: formData.session,
-          year: formData.year,
-        }),
-      });
+    const url = "/api/hsc";
+    const method = editingId ? "PUT" : "POST";
+    const body = {
+      batch: formData.batch,
+      session: formData.session,
+      year: formData.year,
+    };
 
-      if (response.ok) {
-        const updatedDetail = await response.json();
-        setDetails(
-          details.map((detail) =>
-            detail._id === editingId ? updatedDetail : detail
-          )
-        );
-        setEditingId(null);
-      } else {
-        console.error("Failed to update HSC details");
-      }
+    if (editingId) body.id = editingId;
+
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to save HSC details");
+      setError(data.error || "Failed to save HSC details");
+      return;
+    }
+
+    if (editingId) {
+      setDetails(
+        details.map((detail) => (detail._id === editingId ? data : detail))
+      );
+      setEditingId(null);
     } else {
-      const response = await fetch("/api/hsc", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          batch: formData.batch,
-          session: formData.session,
-          year: formData.year,
-        }),
-      });
-
-      if (response.ok) {
-        const newDetail = await response.json();
-        setDetails([...details, newDetail]);
-      } else {
-        console.error("Failed to save HSC details");
-      }
+      setDetails([...details, data]);
     }
 
     setFormData({ batch: "", session: "", year: "" });
     setIsOpen(false);
+    setError(null);
   };
 
+  //handle edit
   const handleEdit = (id) => {
     const detailToEdit = details.find((detail) => detail._id === id);
     if (detailToEdit) {
@@ -118,6 +108,7 @@ export default function page() {
     }
   };
 
+  //handle delete
   const confirmDelete = (id) => {
     setDeleteId(id);
     setIsDeleteDialogOpen(true);
@@ -178,16 +169,8 @@ export default function page() {
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="year">HSC Year</Label>
-              <Input
-                id="year"
-                name="year"
-                value={formData.year}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
+
+            <p className="text-red-500">{error}</p>
             <Button type="submit">
               {editingId !== null ? "Update" : "Submit"}
             </Button>
@@ -197,40 +180,40 @@ export default function page() {
 
       {/* Display HSC Details */}
       <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3 w-full max-w-4xl">
-        {details.slice().reverse().map((detail) => (
-          <Card>
-            <Link key={detail._id} href={`/${detail.link}`}>
-              <CardContent className="p-4">
-                <p>
-                  <strong>HSC Batch:</strong> {detail.batch}{" "}
-                  {/* Corrected the property name */}
-                </p>
-                <p>
-                  <strong>Session:</strong> {detail.session}
-                </p>
-                <p>
-                  <strong>HSC Year:</strong> {detail.year}
-                </p>
-              </CardContent>
-            </Link>
-            <CardFooter className="justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleEdit(detail._id)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => confirmDelete(detail._id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        {details
+          .slice()
+          .reverse()
+          .map((detail) => (
+            <Card>
+              <Link key={detail._id} href={`/${detail.link}`}>
+                <CardContent className="p-4">
+                  <p>
+                    <strong>HSC Batch:</strong> {detail.batch}{" "}
+                    {/* Corrected the property name */}
+                  </p>
+                  <p>
+                    <strong>Session:</strong> {detail.session}
+                  </p>
+                </CardContent>
+              </Link>
+              <CardFooter className="justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleEdit(detail._id)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => confirmDelete(detail._id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
       </div>
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

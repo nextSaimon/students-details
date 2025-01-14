@@ -25,7 +25,8 @@ export default function SectionPage({ params }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteId, setDeleteId] = useState(null);
-
+  const [error, setError] = useState(null);
+  // Fetch data on page load
   useEffect(() => {
     const fetchSections = async () => {
       const response = await fetch(`/api/section/${params.id}`, {
@@ -42,6 +43,7 @@ export default function SectionPage({ params }) {
     fetchSections();
   }, [params.id]);
 
+  //handle change
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -49,10 +51,12 @@ export default function SectionPage({ params }) {
     });
   };
 
+  //handle submit for post and put
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (editingId !== null) {
+      // PUT request for updating a section
       const response = await fetch("/api/section", {
         method: "PUT",
         headers: {
@@ -64,18 +68,27 @@ export default function SectionPage({ params }) {
         }),
       });
 
-      if (response.ok) {
-        const updatedSection = await response.json();
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check for duplicate name error
+        if (data.error) {
+          setError(data.error);
+          return;
+        }
+        console.error("Failed to update section");
+      } else {
         setSections(
           sections.map((section) =>
-            section._id === editingId ? updatedSection : section
+            section._id === editingId ? data : section
           )
         );
         setEditingId(null);
-      } else {
-        console.error("Failed to update section");
+        setError(null);
+        setIsOpen(false);
       }
     } else {
+      // POST request for creating a new section
       const response = await fetch("/api/section", {
         method: "POST",
         headers: {
@@ -87,18 +100,26 @@ export default function SectionPage({ params }) {
         }),
       });
 
-      if (response.ok) {
-        const newSection = await response.json();
-        setSections([...sections, newSection]);
-      } else {
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check for duplicate name error
+        if (data.error) {
+          setError(data.error);
+          return;
+        }
         console.error("Failed to save section");
+      } else {
+        setSections([...sections, data]);
+        setError(null);
+        setIsOpen(false);
       }
     }
 
     setFormData({ name: "" });
-    setIsOpen(false);
   };
 
+  //handle edit
   const handleEdit = (id) => {
     const sectionToEdit = sections.find((section) => section._id === id);
     if (sectionToEdit) {
@@ -110,11 +131,13 @@ export default function SectionPage({ params }) {
     }
   };
 
+  //handle confirm delete
   const confirmDelete = (id) => {
     setDeleteId(id);
     setIsDeleteDialogOpen(true);
   };
 
+  //handle delete
   const handleDelete = async () => {
     if (deleteConfirmText === "delete") {
       const response = await fetch("/api/section", {
@@ -159,6 +182,8 @@ export default function SectionPage({ params }) {
                 required
               />
             </div>
+
+            {error && <p className="text-red-500">{error}</p>}
             <Button type="submit">
               {editingId !== null ? "Update" : "Submit"}
             </Button>

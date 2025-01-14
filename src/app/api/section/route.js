@@ -20,7 +20,19 @@ export async function POST(req) {
     await connectToDB();
 
     const { name, hsc_batch } = await req.json();
-    console.log(hsc_batch);
+
+    // Check if a section with the same name already exists
+    const existingSection = await Section.findOne({
+      sectionName: name,
+      batchId: hsc_batch,
+    });
+
+    if (existingSection) {
+      return new Response(
+        JSON.stringify({ error: "Section with this name already exists" }),
+        { status: 400 }
+      );
+    }
 
     const newSection = new Section({
       sectionName: name,
@@ -35,11 +47,25 @@ export async function POST(req) {
   }
 }
 
+
 export async function PUT(req) {
   try {
     await connectToDB();
 
     const { id, name } = await req.json();
+
+    // Check if a section with the same name already exists, excluding the current one
+    const existingSection = await Section.findOne({
+      sectionName: name,
+      _id: { $ne: id },
+    });
+
+    if (existingSection) {
+      return new Response(
+        JSON.stringify({ error: "Section with this name already exists" }),
+        { status: 400 }
+      );
+    }
 
     // Find and update the section by id
     const updatedSection = await Section.findByIdAndUpdate(
@@ -58,6 +84,7 @@ export async function PUT(req) {
     return new Response("Failed to update section", { status: 500 });
   }
 }
+
 
 export async function DELETE(req) {
   try {

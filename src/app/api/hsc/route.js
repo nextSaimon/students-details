@@ -1,5 +1,6 @@
 import { connectToDB } from "@/lib/db";
 import Batch from "@/models/Batch";
+import Section from "@/models/Section";
 
 // Get Batch details (GET)
 export async function GET(req) {
@@ -17,11 +18,18 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await connectToDB();
-    const { batch, session, year } = await req.json();
+    const { batch, session } = await req.json();
 
-    const link = `Hsc-${year}`;
+    const link = `Hsc-${batch}`;
 
-    const newBatch = new Batch({ batch, session, year, link });
+    const isBatchExists = await Batch.findOne({ batch });
+
+    if (isBatchExists) {
+      return new Response(JSON.stringify({ error: "Batch already exists" }), {
+        status: 400,
+      });
+    }
+    const newBatch = new Batch({ batch, session, link });
     await newBatch.save();
 
     return new Response(JSON.stringify(newBatch), { status: 201 });
@@ -37,11 +45,25 @@ export async function PUT(req) {
     await connectToDB();
     const { id, batch, session, year } = await req.json();
 
+    // Check if the new batch name already exists and it's not the current one being updated
+    const existingBatch = await Batch.findOne({ batch });
+    if (existingBatch && existingBatch._id.toString() !== id) {
+      return new Response(
+        JSON.stringify({ error: "Batch name already exists" }),
+        { status: 400 }
+      );
+    }
+
+    // Update the batch details
     const updatedBatch = await Batch.findByIdAndUpdate(
       id,
       { batch, session, year },
       { new: true }
     );
+
+    if (!updatedBatch) {
+      return new Response("Batch not found", { status: 404 });
+    }
 
     return new Response(JSON.stringify(updatedBatch), { status: 200 });
   } catch (error) {
@@ -50,11 +72,14 @@ export async function PUT(req) {
   }
 }
 
+
 // Delete Batch details (DELETE)
 export async function DELETE(req) {
   try {
     await connectToDB();
     const { id } = await req.json();
+
+    //find from Section where batchId 
 
     await Batch.findByIdAndDelete(id);
 
