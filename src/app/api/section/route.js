@@ -3,13 +3,12 @@ import { connectToDB } from "@/lib/db";
 import Section from "@/models/Section";
 import Batch from "@/models/Batch";
 
-
 export async function POST(req) {
-
   try {
     await connectToDB();
 
     const { name, hsc_batch } = await req.json();
+    console.log(name, hsc_batch);
 
     const year = hsc_batch.split("-")[1];
     // Check if a section with the same name already exists
