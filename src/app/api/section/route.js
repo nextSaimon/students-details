@@ -1,7 +1,7 @@
 import { connectToDB } from "@/lib/db";
 
 import Section from "@/models/Section";
-import Batch from "@/models/Batch";
+import hsc from "@/models/hsc";
 
 export async function POST(req) {
   try {
@@ -25,7 +25,7 @@ export async function POST(req) {
     }
 
     // find year of batch
-    const batch = await Batch.findOne({ batch: year });
+    const batch = await hsc.findOne({ batch: year });
     // _id of batch
     const hsc_batch_id = batch._id;
     const newSection = new Section({

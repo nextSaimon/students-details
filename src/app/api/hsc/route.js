@@ -1,12 +1,12 @@
 import { connectToDB } from "@/lib/db";
-import Batch from "@/models/Batch";
+import hsc from "@/models/hsc";
 import Section from "@/models/Section";
 
-// Get Batch details (GET)
+// Get hsc details (GET)
 export async function GET(req) {
   try {
     await connectToDB();
-    const BatchDetails = await Batch.find();
+    const BatchDetails = await hsc.find();
     return new Response(JSON.stringify(BatchDetails), { status: 200 });
   } catch (error) {
     console.error(error);
@@ -22,14 +22,14 @@ export async function POST(req) {
 
     const link = `Hsc-${batch}`;
 
-    const isBatchExists = await Batch.findOne({ batch });
+    const isBatchExists = await hsc.findOne({ batch });
 
     if (isBatchExists) {
       return new Response(JSON.stringify({ error: "Batch already exists" }), {
         status: 400,
       });
     }
-    const newBatch = new Batch({ batch, session, link });
+    const newBatch = new hsc({ batch, session, link });
     await newBatch.save();
 
     return new Response(JSON.stringify(newBatch), { status: 201 });
@@ -46,7 +46,7 @@ export async function PUT(req) {
     const { id, batch, session, year } = await req.json();
 
     // Check if the new batch name already exists and it's not the current one being updated
-    const existingBatch = await Batch.findOne({ batch });
+    const existingBatch = await hsc.findOne({ batch });
     if (existingBatch && existingBatch._id.toString() !== id) {
       return new Response(
         JSON.stringify({ error: "Batch name already exists" }),
@@ -55,7 +55,7 @@ export async function PUT(req) {
     }
 
     // Update the batch details
-    const updatedBatch = await Batch.findByIdAndUpdate(
+    const updatedBatch = await hsc.findByIdAndUpdate(
       id,
       { batch, session, year },
       { new: true }
@@ -78,12 +78,11 @@ export async function DELETE(req) {
     await connectToDB();
     const { id } = await req.json();
 
-    const batch = await Batch.findById(id);
+    const batch = await hsc.findById(id);
     if (!batch) {
       return new Response("Batch not found", { status: 404 });
     }
 
-   
     const sections = await Section.find({ batchId: id });
 
     // Delete all sections associated with the batch
@@ -92,7 +91,7 @@ export async function DELETE(req) {
     }
 
     // Delete the batch
-    await Batch.findByIdAndDelete(id);
+    await hsc.findByIdAndDelete(id);
 
     return new Response("Batch details and associated sections deleted", {
       status: 200,

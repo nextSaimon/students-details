@@ -15,6 +15,6 @@ const batchSchema = new mongoose.Schema({
   },
 });
 
-const Batch = mongoose.models.Batch || mongoose.model("Batch", batchSchema);
+const hsc = mongoose.models.HSC || mongoose.model("HSC", batchSchema);
 
-export default Batch;
+export default hsc;
