@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import { db } from "@/lib/firebase";
+import { ref, set, get, child } from "firebase/database";
+
 import {
   Dialog,
   DialogContent,
@@ -13,38 +17,45 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
-import Link from "next/link";
 
-export default function page() {
+export default function Page() {
   const [isOpen, setIsOpen] = useState(false);
   const [details, setDetails] = useState([]);
   const [formData, setFormData] = useState({
     batch: "",
     session: "",
   });
-  const [editingId, setEditingId] = useState(null);
+  const [editingBatch, setEditingBatch] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteBatch, setDeleteBatch] = useState(null);
   const [error, setError] = useState(null);
 
-  // Fetch data on page load
+  const hscRef = ref(db, "hsc");
+
+  // Fetch data from Firebase Realtime Database
   useEffect(() => {
     const fetchHscDetails = async () => {
-      const response = await fetch("/api/hsc", {
-        cache: "no-store",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDetails(data);
-      } else {
-        console.error("Failed to fetch HSC details");
+      try {
+        const snapshot = await get(hscRef);
+        if (snapshot.exists()) {
+          const hscDetails = Object.keys(snapshot.val()).map((batch) => ({
+            batch,
+            ...snapshot.val()[batch],
+          }));
+          setDetails(hscDetails);
+        } else {
+          console.log("No data available");
+        }
+      } catch (error) {
+        console.error("Failed to fetch HSC details", error);
       }
     };
 
     fetchHscDetails();
   }, []);
-  //handle change
+
+  // Handle input changes
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -52,85 +63,78 @@ export default function page() {
     });
   };
 
-  //handle submit
+  // Handle form submission for adding/updating HSC details
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const url = "/api/hsc";
-    const method = editingId ? "PUT" : "POST";
-    const body = {
-      batch: formData.batch,
-      session: formData.session,
-      year: formData.year,
-    };
+    // Check if the batch already exists in the database
+    try {
+      const snapshot = await get(hscRef); // Get all the data in the "hsc" node
+      if (snapshot.exists()) {
+        // Check if the batch already exists
+        const existingBatch = snapshot.val()[formData.batch];
 
-    if (editingId) body.id = editingId;
+        if (existingBatch) {
+          setError("This batch already exists. Please use a unique batch.");
+          return;
+        }
+      }
 
-    const response = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      if (editingBatch) {
+        const updateRef = ref(db, `hsc/${editingBatch}`);
+        await set(updateRef, formData);
+        setDetails(
+          details.map((detail) =>
+            detail.batch === editingBatch ? { ...detail, ...formData } : detail
+          )
+        );
+        setEditingBatch(null);
+      } else {
+        const newRef = ref(db, `hsc/${formData.batch}`);
+        await set(newRef, formData);
+        setDetails([...details, { batch: formData.batch, ...formData }]);
+      }
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Failed to save HSC details");
-      setError(data.error || "Failed to save HSC details");
-      return;
+      setFormData({ batch: "", session: "" });
+      setIsOpen(false);
+      setError(null);
+    } catch (error) {
+      console.error("Failed to save HSC details", error);
+      setError("Failed to save HSC details");
     }
-
-    if (editingId) {
-      setDetails(
-        details.map((detail) => (detail._id === editingId ? data : detail))
-      );
-      setEditingId(null);
-    } else {
-      setDetails([...details, data]);
-    }
-
-    setFormData({ batch: "", session: "", year: "" });
-    setIsOpen(false);
-    setError(null);
   };
 
-  //handle edit
-  const handleEdit = (id) => {
-    const detailToEdit = details.find((detail) => detail._id === id);
+  // Handle edit
+  const handleEdit = (batch) => {
+    const detailToEdit = details.find((detail) => detail.batch === batch);
     if (detailToEdit) {
       setFormData({
-        batch: detailToEdit.batch, // fixed the property name from 'name' to 'batch'
+        batch: detailToEdit.batch,
         session: detailToEdit.session,
-        year: detailToEdit.year,
       });
-      setEditingId(id);
+      setEditingBatch(batch);
       setIsOpen(true);
     }
   };
 
-  //handle delete
-  const confirmDelete = (id) => {
-    setDeleteId(id);
+  // Confirm deletion
+  const confirmDelete = (batch) => {
+    setDeleteBatch(batch);
     setIsDeleteDialogOpen(true);
   };
 
+  // Handle delete
   const handleDelete = async () => {
     if (deleteConfirmText === "delete") {
-      const response = await fetch("/api/hsc", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: deleteId }),
-      });
-
-      if (response.ok) {
-        setDetails(details.filter((detail) => detail._id !== deleteId));
+      try {
+        const deleteRef = ref(db, `hsc/${deleteBatch}`);
+        await set(deleteRef, null); // Deleting the record
+        setDetails(details.filter((detail) => detail.batch !== deleteBatch));
         setIsDeleteDialogOpen(false);
         setDeleteConfirmText("");
-        setDeleteId(null);
-      } else {
-        console.error("Failed to delete HSC details");
+        setDeleteBatch(null);
+      } catch (error) {
+        console.error("Failed to delete HSC detail", error);
       }
     }
   };
@@ -145,7 +149,7 @@ export default function page() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingId !== null ? "Edit" : "Enter"} HSC Details
+              {editingBatch !== null ? "Edit" : "Enter"} HSC Details
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,10 +173,9 @@ export default function page() {
                 required
               />
             </div>
-
             <p className="text-red-500">{error}</p>
             <Button type="submit">
-              {editingId !== null ? "Update" : "Submit"}
+              {editingBatch !== null ? "Update" : "Submit"}
             </Button>
           </form>
         </DialogContent>
@@ -184,12 +187,11 @@ export default function page() {
           .slice()
           .reverse()
           .map((detail) => (
-            <Card>
-              <Link key={detail._id} href={`/${detail.link}`}>
+            <Card key={detail.batch}>
+              <Link href={`/${detail.batch}`}>
                 <CardContent className="p-4">
                   <p>
-                    <strong>HSC Batch:</strong> {detail.batch}{" "}
-                    {/* Corrected the property name */}
+                    <strong>HSC Batch:</strong> {detail.batch}
                   </p>
                   <p>
                     <strong>Session:</strong> {detail.session}
@@ -200,14 +202,14 @@ export default function page() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handleEdit(detail._id)}
+                  onClick={() => handleEdit(detail.batch)}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => confirmDelete(detail._id)}
+                  onClick={() => confirmDelete(detail.batch)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -216,6 +218,7 @@ export default function page() {
           ))}
       </div>
 
+      {/* Confirm Deletion Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { getDatabase, ref, set, get, child, remove } from "firebase/database"; // Firebase Realtime Database
+import { db } from "@/lib/firebase"; // Firebase Firestore
 
 export default function SectionPage({ params }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,34 +28,31 @@ export default function SectionPage({ params }) {
   const [error, setError] = useState(null);
   const [hscBatchId, setHscBatchId] = useState(null);
 
-  // Parse params.value to extract hscBatchId
   useEffect(() => {
-    try {
-      if (params?.value) {
-        const parsedValue = JSON.parse(params.value);
-        setHscBatchId(parsedValue.id);
-      } else {
-        console.error("Invalid params or params.value");
-      }
-    } catch (err) {
-      console.error("Failed to parse params.value:", err);
+    if (params?.value) {
+      const parsedValue = JSON.parse(params.value);
+      setHscBatchId(parsedValue.id);
     }
   }, [params]);
 
-  // Fetch data on hscBatchId change
+  // Fetch data from Realtime Database when hscBatchId changes
   useEffect(() => {
     if (!hscBatchId) return;
 
     const fetchSections = async () => {
       try {
-        const response = await fetch(`/api/section/${hscBatchId}`, {
-          cache: "no-store",
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setSections(data);
+        const dbRef = ref(getDatabase());
+        const snapshot = await get(child(dbRef, `hsc/${hscBatchId}/sections`));
+        if (snapshot.exists()) {
+          const sectionsData = snapshot.val();
+          setSections(
+            Object.keys(sectionsData).map((id) => ({
+              _id: id,
+              sectionName: sectionsData[id].sectionName,
+            }))
+          );
         } else {
-          console.error("Failed to fetch sections");
+          setSections([]);
         }
       } catch (err) {
         console.error("Error fetching sections:", err);
@@ -63,7 +62,6 @@ export default function SectionPage({ params }) {
     fetchSections();
   }, [hscBatchId]);
 
-  // Handle form input changes
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -71,48 +69,61 @@ export default function SectionPage({ params }) {
     });
   };
 
-  // Handle form submission for creating or editing a section
+  // Check if the section name is unique for the batch
+  const isSectionNameUnique = (name) => {
+    return !sections.some((section) => section.sectionName === name);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isSectionNameUnique(formData.name)) {
+      setError("Section name must be unique.");
+      return;
+    }
+
     try {
-      const requestBody = editingId
-        ? { id: editingId, name: formData.name }
-        : { name: formData.name, hsc_batch: hscBatchId };
+      const dbRef = ref(getDatabase());
 
-      const response = await fetch("/api/section", {
-        method: editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
+      const newSection = {
+        sectionName: formData.name,
+      };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error) {
-          setError(data.error);
-          return;
-        }
-        console.error("Failed to save section");
+      if (editingId) {
+        // Update an existing section
+        await set(
+          child(dbRef, `hsc/${hscBatchId}/sections/${formData.name}`), // Use section name as the key
+          newSection
+        );
+        setSections((prev) =>
+          prev.map((section) =>
+            section.sectionName === formData.name
+              ? { ...section, sectionName: formData.name }
+              : section
+          )
+        );
       } else {
-        if (editingId) {
-          setSections((prev) =>
-            prev.map((section) => (section._id === editingId ? data : section))
-          );
-          setEditingId(null);
-        } else {
-          setSections((prev) => [...prev, data]);
-        }
-        setError(null);
-        setIsOpen(false);
-        setFormData({ name: "" });
+        // Create a new section
+        await set(
+          child(dbRef, `hsc/${hscBatchId}/sections/${formData.name}`), // Use section name as the key
+          newSection
+        );
+        setSections((prev) => [
+          ...prev,
+          { _id: formData.name, sectionName: formData.name },
+        ]);
       }
+
+      setFormData({ name: "" });
+      setError(null);
+      setIsOpen(false);
+      setEditingId(null);
     } catch (err) {
       console.error("Error saving section:", err);
+      setError("Failed to save section");
     }
   };
 
-  // Handle edit button click
   const handleEdit = (id) => {
     const sectionToEdit = sections.find((section) => section._id === id);
     if (sectionToEdit) {
@@ -122,31 +133,21 @@ export default function SectionPage({ params }) {
     }
   };
 
-  // Confirm delete dialog
   const confirmDelete = (id) => {
     setDeleteId(id);
     setIsDeleteDialogOpen(true);
   };
 
-  // Handle delete section
   const handleDelete = async () => {
     if (deleteConfirmText === "delete") {
       try {
-        const response = await fetch("/api/section", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: deleteId }),
-        });
-
-        if (response.ok) {
-          setSections((prev) =>
-            prev.filter((section) => section._id !== deleteId)
-          );
-          setIsDeleteDialogOpen(false);
-          setDeleteConfirmText("");
-        } else {
-          console.error("Failed to delete section");
-        }
+        const dbRef = ref(getDatabase());
+        await remove(child(dbRef, `hsc/${hscBatchId}/sections/${deleteId}`));
+        setSections((prev) =>
+          prev.filter((section) => section._id !== deleteId)
+        );
+        setIsDeleteDialogOpen(false);
+        setDeleteConfirmText("");
       } catch (err) {
         console.error("Error deleting section:", err);
       }
